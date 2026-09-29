@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HFLabs.ML.LLM.LevelZero.Cli</RootNamespace>
+    <AssemblyName>l0llm</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Version>2.0.0</Version>
+    <Authors>HF.Labs</Authors>
+    <Company>HF Laboratories</Company>
+    <Description>Fast, zero-allocation Intel Level Zero LLM runner and OpenAI-compatible REST server.</Description>
+    <RepositoryUrl>https://github.com/hf-laboratories/l0llm</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HFLabs.ML.LLM.LevelZero\HFLabs.ML.LLM.LevelZero.csproj" />
+  </ItemGroup>
+</Project>

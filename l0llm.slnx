@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HFLabs.ML.LLM.LevelZero/HFLabs.ML.LLM.LevelZero.csproj" />
+    <Project Path="src/l0llm/l0llm.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HFLabs.ML.LLM.LevelZero.Tests/HFLabs.ML.LLM.LevelZero.Tests.csproj" />
+  </Folder>
+</Solution>
