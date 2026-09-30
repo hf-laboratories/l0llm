@@ -39,6 +39,8 @@ Notes
 
 If something fails
   "Level Zero: NOT available"     install or update the Intel graphics driver (it provides the Level Zero loader).
+                                  To check your GPU and driver on their own, use l0check:
+                                  https://github.com/hf-laboratories/l0check
   "zeMemAllocShared failed"       not enough shared GPU memory: close other GPU-heavy apps, use a smaller model,
                                   or pass --max-seq 1024.
   Anything else                   run  l0llm info  and keep its output together with the error text.

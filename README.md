@@ -74,6 +74,8 @@ Requirements:
 - [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - Intel Graphics Driver with Level Zero runtime (`ze_loader.dll`)
 
+Not sure your GPU and driver are ready? Run [l0check](https://github.com/hf-laboratories/l0check) first. It is a small diagnostics tool that reports whether Level Zero is available and what it finds.
+
 ```shell
 git clone https://github.com/hf-laboratories/l0llm.git
 cd l0llm
