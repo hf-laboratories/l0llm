@@ -91,3 +91,16 @@ dotnet publish src/l0llm/l0llm.csproj -c Release -r win-x64 --self-contained tru
 ## 📄 License
 
 Apache-2.0. See [LICENSE](LICENSE) for details.
+
+## Trademarks and non-affiliation
+
+Product and company names in this repository belong to their owners and are used only to say what this project works with. HF Laboratories is not affiliated with, endorsed by, or sponsored by any of them.
+
+- Intel, oneAPI, Level Zero are trademarks or registered trademarks of Intel Corporation.
+- Microsoft, Windows, .NET are trademarks or registered trademarks of Microsoft Corporation.
+- OpenAI is a trademark or registered trademark of OpenAI.
+- Anthropic, Claude are trademarks or registered trademarks of Anthropic, PBC.
+- Hugging Face is a trademark or registered trademark of Hugging Face, Inc.
+- PyTorch is a trademark or registered trademark of The Linux Foundation.
+
+See [hflabs.dev/legal/trademarks](https://hflabs.dev/legal/trademarks) for the full list.
