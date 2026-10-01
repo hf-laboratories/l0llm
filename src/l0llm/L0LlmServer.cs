@@ -17,9 +17,12 @@ internal static class L0LlmServer
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
+    private static IChatTemplate s_template = Qwen25ChatTemplate.Instance;
+
     public static async Task<int> StartAsync(string modelDir, Dictionary<string, string> opts, LevelZeroLlmEngine engine, string modelId)
     {
         int port = opts.TryGetValue("port", out string? portStr) && int.TryParse(portStr, CultureInfo.InvariantCulture, out int p) ? p : 11434;
+        s_template = ChatTemplates.ForModelDirectory(modelDir);
         string host = opts.GetValueOrDefault("host") ?? "localhost";
         string prefix = $"http://{host}:{port}/";
 
@@ -166,7 +169,7 @@ internal static class L0LlmServer
                     {
                         turns.Add(new ChatTurn(m.Role ?? "user", m.Content ?? ""));
                     }
-                    string prompt = QwenChatTemplate.Format(turns);
+                    string prompt = s_template.Format(turns);
 
                     var genOptions = new LlmGenerationOptions
                     {

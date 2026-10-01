@@ -267,7 +267,7 @@ internal static class Cli
         string prompt = opts.GetValueOrDefault("prompt") ?? throw new ArgumentException("--prompt is required.");
         string dir = ResolveModel(opts);
         using LevelZeroLlmEngine engine = CreateEngine(dir, opts, out string id);
-        string text = opts.ContainsKey("raw") ? prompt : QwenChatTemplate.Format(BuildTurns(opts, [], prompt));
+        string text = opts.ContainsKey("raw") ? prompt : ChatTemplates.ForModelDirectory(dir).Format(BuildTurns(opts, [], prompt));
         if (IntOpt(opts, "beams", 1) > 1)
         {
             int beams = IntOpt(opts, "beams", 1);
@@ -322,6 +322,7 @@ internal static class Cli
         string dir = ResolveModel(opts);
         Console.WriteLine($"Loading {Path.GetFileName(dir)} ...");
         using LevelZeroLlmEngine engine = CreateEngine(dir, opts, out string id);
+        IChatTemplate template = ChatTemplates.ForModelDirectory(dir);
         var history = new List<ChatTurn>();
         Console.WriteLine("Type a message. /reset clears the conversation, /exit quits.");
         while (true)
@@ -345,7 +346,7 @@ internal static class Cli
                 continue;
             }
 
-            string prompt = QwenChatTemplate.Format(BuildTurns(opts, history, line));
+            string prompt = template.Format(BuildTurns(opts, history, line));
             var reply = new StringBuilder();
             Console.Write("bot> ");
             var watch = Stopwatch.StartNew();

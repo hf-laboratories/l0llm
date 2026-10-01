@@ -21,7 +21,8 @@ Measured on **Intel® Iris® Xe Graphics (96 EU, 15W TDP mobile)** running Qwen 
 
 ## 🌟 Key Features
 
-- **Multi-Model Support**: Direct support for `LLaMA` (3/3.1/3.2), `Qwen` (2.5/3/3.5), `DeepSeek`, `Mistral`, and `Phi` architectures.
+- **Multi-Model Support**: Runs Hugging Face checkpoints with `model_type` `qwen2` (Qwen2/2.5), `qwen3`, `qwen3_5` (Qwen3.5, text only) and `llama` (Llama 3.x). Other architectures (DeepSeek, Mistral, Phi, ...) are not supported yet.
+- **Chat Templates**: Picked automatically from the checkpoint's `model_type`: Qwen2.5 ChatML, Qwen3/Qwen3.5 ChatML, and Llama 3 headers. Llama 3.1/3.2's injected date system prompt and tool calling are not rendered.
 - **Checkpoint Formats**: Reads standard Hugging Face `model.safetensors` as well as sharded index formats (`model.safetensors.index.json`).
 - **OpenAI-Compatible REST API**:
   - `POST /v1/chat/completions` (Server-Sent Events streaming & non-streaming)
