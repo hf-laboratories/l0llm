@@ -98,7 +98,7 @@ public sealed class RopeFrequenciesTests
         Assert.Throws<InvalidDataException>(
             HfModelConfig.Parse(ConfigJson("""{"type":"linear","factor":0}""")).EnsureSupported);
         Assert.Throws<NotSupportedException>(
-            HfModelConfig.Parse(ConfigJson("""{"rope_type":"llama3","factor":8}""")).EnsureSupported);
+            HfModelConfig.Parse(ConfigJson("""{"rope_type":"dynamic","factor":8}""")).EnsureSupported);
     }
 
     private static HfRopeScaling ParseScaling(JsonElement s) => new()

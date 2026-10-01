@@ -35,6 +35,7 @@ internal static class Cli
           --top-p P / --top-k K / --repeat R   sampling controls
           --system TEXT      system prompt for chat/run
           --raw              run: send the prompt as-is (no chat template)
+          --think/--no-think Qwen3, Qwen3.5: force thinking mode on or off (default: the model's own)
           --beams N          run: beam search with N beams instead of sampling (128 new tokens by default)
           --n-best K         with --beams: print the K best completions (default 1)
           --length-penalty A with --beams: score = logprob / length^A (default 1.0)
@@ -98,7 +99,7 @@ internal static class Cli
             }
 
             string key = a[2..];
-            if (key == "raw")
+            if (key is "raw" or "think" or "no-think")
             {
                 map[key] = "true";
                 continue;
@@ -267,7 +268,7 @@ internal static class Cli
         string prompt = opts.GetValueOrDefault("prompt") ?? throw new ArgumentException("--prompt is required.");
         string dir = ResolveModel(opts);
         using LevelZeroLlmEngine engine = CreateEngine(dir, opts, out string id);
-        string text = opts.ContainsKey("raw") ? prompt : ChatTemplates.ForModelDirectory(dir).Format(BuildTurns(opts, [], prompt));
+        string text = opts.ContainsKey("raw") ? prompt : ChatTemplates.ForModelDirectory(dir).Format(BuildTurns(opts, [], prompt), ThinkingOptions(opts));
         if (IntOpt(opts, "beams", 1) > 1)
         {
             int beams = IntOpt(opts, "beams", 1);
@@ -303,6 +304,10 @@ internal static class Cli
         Console.WriteLine();
         return 0;
     }
+
+    /// <summary>--think / --no-think switch Qwen3 and Qwen3.5 thinking mode; without either, each model keeps its default.</summary>
+    private static ChatTemplateOptions ThinkingOptions(Dictionary<string, string> opts) =>
+        new() { EnableThinking = opts.ContainsKey("no-think") ? false : opts.ContainsKey("think") ? true : null };
 
     private static List<ChatTurn> BuildTurns(Dictionary<string, string> opts, List<ChatTurn> history, string user)
     {
@@ -346,7 +351,7 @@ internal static class Cli
                 continue;
             }
 
-            string prompt = template.Format(BuildTurns(opts, history, line));
+            string prompt = template.Format(BuildTurns(opts, history, line), ThinkingOptions(opts));
             var reply = new StringBuilder();
             Console.Write("bot> ");
             var watch = Stopwatch.StartNew();

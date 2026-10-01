@@ -21,8 +21,9 @@ Measured on **Intel® Iris® Xe Graphics (96 EU, 15W TDP mobile)** running Qwen 
 
 ## 🌟 Key Features
 
-- **Multi-Model Support**: Runs Hugging Face checkpoints with `model_type` `qwen2` (Qwen2/2.5), `qwen3`, `qwen3_5` (Qwen3.5, text only) and `llama` (Llama 3.x). Other architectures (DeepSeek, Mistral, Phi, ...) are not supported yet.
-- **Chat Templates**: Picked automatically from the checkpoint's `model_type`: Qwen2.5 ChatML, Qwen3/Qwen3.5 ChatML, and Llama 3 headers. Llama 3.1/3.2's injected date system prompt and tool calling are not rendered.
+- **Multi-Model Support**: Runs Hugging Face checkpoints with `model_type` `qwen2` (Qwen2/2.5), `qwen3`, `qwen3_5` (Qwen3.5, text only) and `llama` (Llama 3, 3.1 and 3.2, including `llama3` RoPE scaling). Other architectures (DeepSeek, Mistral, Phi, ...) are not supported yet.
+- **Chat Templates**: Picked automatically from the checkpoint's `model_type` and checked byte-for-byte against the real Hugging Face templates: Qwen2/2.5, Qwen3, Qwen3.5 and Llama 3 / 3.1 / 3.2 (including Llama 3.1+'s dated system header). Qwen3/3.5 thinking mode can be forced with `--think` / `--no-think` (or `chat_template_kwargs.enable_thinking` on the server).
+- **Tool Calling**: `/v1/chat/completions` accepts OpenAI-style `tools`, `tool` messages and assistant `tool_calls`, renders them in each model's own format, and returns parsed `tool_calls` (streamed requests with tools are buffered and sent once the reply is complete).
 - **Checkpoint Formats**: Reads standard Hugging Face `model.safetensors` as well as sharded index formats (`model.safetensors.index.json`).
 - **OpenAI-Compatible REST API**:
   - `POST /v1/chat/completions` (Server-Sent Events streaming & non-streaming)

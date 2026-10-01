@@ -163,13 +163,16 @@ internal static class L0LlmServer
                         return;
                     }
 
-                    // Format turns into ChatML prompt
+                    IChatTemplate template = s_template;
                     var turns = new List<ChatTurn>();
-                    foreach (var m in chatReq.Messages)
+                    foreach (ChatMessage m in chatReq.Messages)
                     {
-                        turns.Add(new ChatTurn(m.Role ?? "user", m.Content ?? ""));
+                        turns.Add(m.ToTurn());
                     }
-                    string prompt = s_template.Format(turns);
+                    IReadOnlyList<string> tools = chatReq.ToolsJson();
+                    bool hasTools = tools.Count > 0;
+                    var templateOptions = new ChatTemplateOptions { ToolsJson = tools, EnableThinking = chatReq.TemplateKwargs?.EnableThinking };
+                    string prompt = template.Format(turns, templateOptions);
 
                     var genOptions = new LlmGenerationOptions
                     {
@@ -183,7 +186,11 @@ internal static class L0LlmServer
                     await sem.WaitAsync(ct).ConfigureAwait(false);
                     try
                     {
-                        if (chatReq.Stream)
+                        if (hasTools)
+                        {
+                            await HandleToolChatAsync(res, engine, modelId, prompt, genOptions, template, chatReq.Stream, ct).ConfigureAwait(false);
+                        }
+                        else if (chatReq.Stream)
                         {
                             await HandleStreamChatAsync(res, engine, modelId, prompt, genOptions, ct).ConfigureAwait(false);
                         }
@@ -366,6 +373,78 @@ internal static class L0LlmServer
         await writer.FlushAsync(ct).ConfigureAwait(false);
     }
 
+    private static async Task HandleToolChatAsync(
+        HttpListenerResponse res,
+        LevelZeroLlmEngine engine,
+        string modelId,
+        string prompt,
+        LlmGenerationOptions gen,
+        IChatTemplate template,
+        bool stream,
+        CancellationToken ct)
+    {
+        // Tool calls can only be recognised once the whole reply is known, so tool requests buffer the output.
+        var sb = new StringBuilder();
+        int completionTokens = 0;
+        await foreach (string piece in engine.GenerateAsync(prompt, modelId, gen, ct).ConfigureAwait(false))
+        {
+            completionTokens++;
+            sb.Append(piece);
+        }
+        ChatReply reply = template.ParseReply(sb.ToString());
+        var calls = reply.ToolCalls
+            .Select((c, i) => new { index = i, id = $"call_{Guid.NewGuid():N}", type = "function", function = new { name = c.Name, arguments = c.ArgumentsJson } })
+            .ToArray();
+        string? text = reply.Content.Length > 0 ? reply.Content : null;
+        string finish = calls.Length > 0 ? "tool_calls" : "stop";
+        string id = $"chatcmpl-{Guid.NewGuid():N}";
+        long created = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (!stream)
+        {
+            var response = new
+            {
+                id,
+                @object = "chat.completion",
+                created,
+                model = modelId,
+                choices = new[]
+                {
+                    new
+                    {
+                        index = 0,
+                        message = new { role = "assistant", content = text, tool_calls = calls.Length > 0 ? calls : null },
+                        finish_reason = finish
+                    }
+                },
+                usage = new
+                {
+                    prompt_tokens = prompt.Length / 4, // estimate
+                    completion_tokens = completionTokens,
+                    total_tokens = (prompt.Length / 4) + completionTokens
+                }
+            };
+            await WriteJsonAsync(res, response).ConfigureAwait(false);
+            return;
+        }
+        res.ContentType = "text/event-stream; charset=utf-8";
+        res.StatusCode = (int)HttpStatusCode.OK;
+        res.SendChunked = true;
+        using var writer = new StreamWriter(res.OutputStream, new UTF8Encoding(false), bufferSize: 1024, leaveOpen: true);
+        async Task SendAsync(object delta, string? finishReason)
+        {
+            var chunk = new { id, @object = "chat.completion.chunk", created, model = modelId, choices = new[] { new { index = 0, delta, finish_reason = finishReason } } };
+            await writer.WriteAsync($"data: {JsonSerializer.Serialize(chunk, JsonOpts)}\n\n").ConfigureAwait(false);
+            await writer.FlushAsync(ct).ConfigureAwait(false);
+        }
+        await SendAsync(new { role = "assistant", content = text ?? string.Empty }, null).ConfigureAwait(false);
+        if (calls.Length > 0)
+        {
+            await SendAsync(new { tool_calls = calls }, null).ConfigureAwait(false);
+        }
+        await SendAsync(new { }, finish).ConfigureAwait(false);
+        await writer.WriteAsync("data: [DONE]\n\n").ConfigureAwait(false);
+        await writer.FlushAsync(ct).ConfigureAwait(false);
+    }
     private static async Task WriteJsonAsync(HttpListenerResponse res, object payload)
     {
         res.ContentType = "application/json; charset=utf-8";
@@ -390,12 +469,59 @@ internal static class L0LlmServer
         public int? MaxTokens { get; set; }
         [JsonPropertyName("max_completion_tokens")]
         public int? MaxCompletionTokens { get; set; }
+        public List<JsonElement>? Tools { get; set; }
+        [JsonPropertyName("tool_choice")]
+        public JsonElement ToolChoice { get; set; }
+        [JsonPropertyName("chat_template_kwargs")]
+        public TemplateKwargs? TemplateKwargs { get; set; }
+        public IReadOnlyList<string> ToolsJson() =>
+            Tools is null || (ToolChoice.ValueKind == JsonValueKind.String && ToolChoice.GetString() == "none")
+                ? []
+                : Tools.Select(t => t.GetRawText()).ToList();
     }
 
     private sealed class ChatMessage
     {
         public string? Role { get; set; }
-        public string? Content { get; set; }
+        public JsonElement Content { get; set; }
+        [JsonPropertyName("tool_calls")]
+        public List<ToolCallDto>? ToolCalls { get; set; }
+        public ChatTurn ToTurn()
+        {
+            List<ChatToolCall>? calls = ToolCalls?
+                .Where(c => c.Function?.Name is not null)
+                .Select(c => new ChatToolCall(c.Function!.Name!, ArgumentsJson(c.Function.Arguments)))
+                .ToList();
+            return new ChatTurn(Role ?? "user", Text(Content), calls is { Count: > 0 } ? calls : null);
+        }
+        private static string Text(JsonElement c) => c.ValueKind switch
+        {
+            JsonValueKind.String => c.GetString() ?? string.Empty,
+            JsonValueKind.Array => string.Concat(c.EnumerateArray().Select(p =>
+                p.ValueKind == JsonValueKind.Object && p.TryGetProperty("text", out JsonElement t) && t.ValueKind == JsonValueKind.String ? t.GetString() : string.Empty)),
+            _ => string.Empty,
+        };
+        private static string ArgumentsJson(JsonElement a) => a.ValueKind switch
+        {
+            JsonValueKind.String => a.GetString() is { Length: > 0 } s ? s : "{}",
+            JsonValueKind.Object => a.GetRawText(),
+            _ => "{}",
+        };
+    }
+    private sealed class ToolCallDto
+    {
+        public string? Id { get; set; }
+        public ToolFunctionDto? Function { get; set; }
+    }
+    private sealed class ToolFunctionDto
+    {
+        public string? Name { get; set; }
+        public JsonElement Arguments { get; set; }
+    }
+    private sealed class TemplateKwargs
+    {
+        [JsonPropertyName("enable_thinking")]
+        public bool? EnableThinking { get; set; }
     }
 
     private sealed class CompletionRequest

@@ -33,8 +33,9 @@ Notes
   - Weights are int8 by default (about half the memory traffic of fp16, roughly 1.7-1.9x faster decode). Use
     --precision fp16 for the exact half-precision path that matches HuggingFace transformers token for token.
   - The first run extracts the GPU shim to %TEMP%\LevelZero.NET (a few MB) and loading a model takes 15-40 s.
-  - The chat template is chosen from the model's model_type: Qwen2.5 ChatML, Qwen3/Qwen3.5 ChatML, or Llama 3
-    headers. Tool calling is not rendered, and Llama 3.1/3.2 do not get their dated default system prompt.
+  - The chat template is chosen from the model's model_type: Qwen2.5, Qwen3, Qwen3.5 or Llama 3/3.1/3.2. Qwen3 and Qwen3.5
+    thinking mode can be forced with --think or --no-think. The server accepts OpenAI-style tools and returns
+    tool_calls (tool-call requests are not streamed token by token).
   - Text only; Qwen3.5 vision and multi-token-prediction tensors are ignored.
 
 If something fails

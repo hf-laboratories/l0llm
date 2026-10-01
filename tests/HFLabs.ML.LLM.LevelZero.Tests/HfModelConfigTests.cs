@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 using static HFLabs.ML.LLM.LevelZero.Tests.SafetensorsTestFiles;
 
 namespace HFLabs.ML.LLM.LevelZero.Tests;
@@ -137,7 +137,7 @@ public sealed class HfModelConfigTests
     [Theory]
     [InlineData("model_type", "\"gpt2\"")]
     [InlineData("hidden_act", "\"gelu\"")]
-    [InlineData("rope_scaling", """{"rope_type":"llama3","factor":8.0}""")]
+    [InlineData("rope_scaling", """{"rope_type":"dynamic","factor":8.0}""")]
     [InlineData("use_sliding_window", "true")]
     public void EnsureSupported_RejectsUnimplementedFeatures(string field, string value)
     {

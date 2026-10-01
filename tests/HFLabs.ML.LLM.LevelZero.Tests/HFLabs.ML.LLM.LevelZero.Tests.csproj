@@ -25,4 +25,7 @@
   <ItemGroup>
     <Content Include="golden\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="ChatTemplateGoldens.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

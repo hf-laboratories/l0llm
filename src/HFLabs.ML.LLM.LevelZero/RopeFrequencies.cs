@@ -1,11 +1,11 @@
-using System.Globalization;
+﻿using System.Globalization;
 
 namespace HFLabs.ML.LLM.LevelZero;
 
 /// <summary>The <c>rope_scaling</c> block of a Hugging Face <c>config.json</c>.</summary>
 public sealed record HfRopeScaling
 {
-    /// <summary>Scaling type: <c>default</c>, <c>linear</c> or <c>yarn</c> are supported.</summary>
+    /// <summary>Scaling type: <c>default</c>, <c>linear</c>, <c>yarn</c> or <c>llama3</c> are supported.</summary>
     public required string Type { get; init; }
 
     /// <summary>Context extension factor.</summary>
@@ -29,13 +29,19 @@ public sealed record HfRopeScaling
     /// <summary>YaRN attention factor override, when configured.</summary>
     public double? AttentionFactor { get; init; }
 
+    /// <summary>Llama 3.1 scaling: wavelengths longer than <c>original / LowFreqFactor</c> are fully interpolated.</summary>
+    public double LowFreqFactor { get; init; } = 1.0;
+
+    /// <summary>Llama 3.1 scaling: wavelengths shorter than <c>original / HighFreqFactor</c> are left alone.</summary>
+    public double HighFreqFactor { get; init; } = 4.0;
+
     /// <summary>YaRN: round the correction range to whole dimensions (the transformers default).</summary>
     public bool Truncate { get; init; } = true;
 }
 
 /// <summary>
 /// Inverse-frequency table for rotary embeddings, including the scaled variants. Mirrors the
-/// <c>ROPE_INIT_FUNCTIONS</c> of Hugging Face <c>transformers</c> (default, linear, yarn).
+/// <c>ROPE_INIT_FUNCTIONS</c> of Hugging Face <c>transformers</c> (default, linear, yarn, llama3).
 /// </summary>
 public static class RopeFrequencies
 {
@@ -92,9 +98,11 @@ public static class RopeFrequencies
 
             case "yarn":
                 return Yarn(headDim, theta, maxPositionEmbeddings, scaling!, baseFreq);
+            case "llama3":
+                return (ToFloat(Llama3(maxPositionEmbeddings, scaling!, baseFreq)), 1f);
             default:
                 throw new NotSupportedException(
-                    string.Create(CultureInfo.InvariantCulture, $"rope_scaling '{type}' is not supported (default, linear and yarn are)."));
+                    string.Create(CultureInfo.InvariantCulture, $"rope_scaling '{type}' is not supported (default, linear, yarn and llama3 are)."));
         }
     }
 
@@ -143,6 +151,35 @@ public static class RopeFrequencies
         }
 
         return (ToFloat(result), (float)attention);
+    }
+
+    /// <summary>Llama 3.1 frequency smoothing (transformers <c>_compute_llama3_parameters</c>).</summary>
+    private static double[] Llama3(int maxPositionEmbeddings, HfRopeScaling s, double[] baseFreq)
+    {
+        double original = s.OriginalMaxPositionEmbeddings ?? maxPositionEmbeddings;
+        double lowWavelength = original / s.LowFreqFactor;
+        double highWavelength = original / s.HighFreqFactor;
+        var result = new double[baseFreq.Length];
+        for (int i = 0; i < baseFreq.Length; i++)
+        {
+            double freq = baseFreq[i];
+            double wavelength = 2 * Math.PI / freq;
+            if (wavelength < highWavelength)
+            {
+                result[i] = freq;
+            }
+            else if (wavelength > lowWavelength)
+            {
+                result[i] = freq / s.Factor;
+            }
+            else
+            {
+                double smooth = ((original / wavelength) - s.LowFreqFactor) / (s.HighFreqFactor - s.LowFreqFactor);
+                result[i] = ((1 - smooth) * freq / s.Factor) + (smooth * freq);
+            }
+        }
+
+        return result;
     }
 
     private static double Mscale(double scale, double mscale) => scale <= 1.0 ? 1.0 : (0.1 * mscale * Math.Log(scale)) + 1.0;

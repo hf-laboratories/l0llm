@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 
 namespace HFLabs.ML.LLM.LevelZero;
@@ -220,9 +220,9 @@ public sealed record HfModelConfig
             throw new NotSupportedException($"hidden_act '{HiddenAct}' is not supported (only silu).");
         }
 
-        if (RopeScalingType is not null and not ("default" or "linear" or "yarn"))
+        if (RopeScalingType is not null and not ("default" or "linear" or "yarn" or "llama3"))
         {
-            throw new NotSupportedException($"rope_scaling '{RopeScalingType}' is not supported (default, linear and yarn are).");
+            throw new NotSupportedException($"rope_scaling '{RopeScalingType}' is not supported (default, linear, yarn and llama3 are).");
         }
         if (RopeScaling is { Factor: <= 0 })
         {
@@ -406,6 +406,8 @@ public sealed record HfModelConfig
             MscaleAllDim = OptionalDouble(scaling, "mscale_all_dim"),
             AttentionFactor = OptionalDouble(scaling, "attention_factor"),
             Truncate = OptionalBool(scaling, "truncate") ?? true,
+            LowFreqFactor = OptionalDouble(scaling, "low_freq_factor") ?? 1.0,
+            HighFreqFactor = OptionalDouble(scaling, "high_freq_factor") ?? 4.0,
         };
     }
 
